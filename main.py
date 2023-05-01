@@ -24,7 +24,7 @@ def get_web():
 
     # Set chrome options for working with headless mode (no screen)
     driver_options = webdriver.ChromeOptions()
-    driver_options.binary_location = '/opt/chrome/chrome'
+    # driver_options.binary_location = '/opt/chrome/chrome'
     driver_options.add_argument("headless")
     driver_options.add_argument("no-sandbox")
     driver_options.add_argument("--single-process")  # Lambda only gives us only one CPU
@@ -75,7 +75,9 @@ def get_current_league(web_driver):
 
     try:
         refresh()
-    except selenium.common.exceptions.NoSuchElementException:
+    except (
+            selenium.common.exceptions.NoSuchElementException,
+            selenium.common.exceptions.ElementClickInterceptedException):
         refresh()
         click_menu_icon(web_driver)
 
