@@ -26,7 +26,7 @@ pipeline {
        stage('Build App Image') {
             steps {
                 script {
-                    withCredentials([aws(credentialsId: "AWS_CREDENTIALS", region: "${AWS_REGION}")])  {
+                    withCredentials([aws(credentialsId: "AWS_CREDENTIALS", awsRegion: "${AWS_REGION}")])  {
                         sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${LEAGUE_BOT_REGISTRY}"
                         dockerImage = docker.build("${LEAGUE_BOT_APP_REGISTRY}:${BUILD_NUMBER}", "./")
                     }
