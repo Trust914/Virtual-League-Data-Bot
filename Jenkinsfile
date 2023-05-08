@@ -3,10 +3,10 @@ pipeline {
 
     environment {
 
-        AWS_DEFAULT_REGION  = 'us-east-1'
-        REGISTRY_CREDENTIALS = "ecr:$AWS_REGION:AWS_CREDENTIALS"
-        LEAGUE_BOT_APP_REGISTRY = "869704209971.dkr.ecr.us-east-1.amazonaws.com/leaguetest"
-        LEAGUE_BOT_REGISTRY = "https://869704209971.dkr.ecr.us-east-1.amazonaws.com"
+        awsRegion  = 'us-east-1'
+        awsCredentials = "ecr:$AWS_REGION:AWS_CREDENTIALS"
+        appRegistry = "869704209971.dkr.ecr.us-east-1.amazonaws.com/leaguetest"
+        botRegistry = "https://869704209971.dkr.ecr.us-east-1.amazonaws.com"
         //LAMBDA_FUNCTION_NAME = 'your-lambda-function-name'
     }
 
@@ -23,17 +23,13 @@ pipeline {
                 ])
             }
         }
-       stage('Build App Image') {
+        stage('Build App Image') {
             steps {
                 script {
-                    withCredentials([aws( $class: 'AmazonWebServicesCredentialsBinding', credentialsId: "AWS_CREDENTIALS")])  {
-                        sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${LEAGUE_BOT_REGISTRY}"
-                        dockerImage = docker.build("${LEAGUE_BOT_APP_REGISTRY}:${BUILD_NUMBER}", "./")
-                    }
+                    dockerImage = docker.build( appRegistry + ":$BUILD_NUMBER", "./")
                 }
             }
-       }
-
+        }
 //         stage('Upload App Image') {
 //             steps {
 //                 script {
