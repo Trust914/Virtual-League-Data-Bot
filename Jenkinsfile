@@ -25,10 +25,7 @@ pipeline {
         }
         stage('Build App Image') {
             steps {
-<<<<<<< HEAD
                 sh "aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $LEAGUE_BOT_REGISTRY"
-=======
->>>>>>> 09d9104a88a702bd13fa14c180ba356936aa2368
                 script {
                     dockerImage = docker.build("$LEAGUE_BOT_APP_REGISTRY:$BUILD_NUMBER", "./")
                 }
