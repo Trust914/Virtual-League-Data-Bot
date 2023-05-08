@@ -25,12 +25,11 @@ pipeline {
         }
         stage('Build App Image') {
             steps {
-<<<<<<< HEAD
-                sh "aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $LEAGUE_BOT_REGISTRY"
-=======
->>>>>>> 09d9104a88a702bd13fa14c180ba356936aa2368
                 script {
-                    dockerImage = docker.build("$LEAGUE_BOT_APP_REGISTRY:$BUILD_NUMBER", "./")
+                    withCredentials([aws(credentialsId: "AWS_CREDENTIALS", region: "$AWS_REGION")])  {
+                        sh "aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $LEAGUE_BOT_REGISTRY"
+                        dockerImage = docker.build("$LEAGUE_BOT_APP_REGISTRY:$BUILD_NUMBER", "./")
+                    }
                 }
             }
         }
@@ -38,12 +37,11 @@ pipeline {
         stage('Upload App Image') {
             steps {
                 script {
-//                     withCredentials([awsEcr(usernamePassword(credentialsId: 'aws-ecr-creds', passwordVariable: 'password', usernameVariable: 'username'))]) {
-                    docker.withRegistry("$LEAGUE_BOT_REGISTRY","$REGISTRY_CREDENTIALS") {
-                        dockerImage.push("$BUILD_NUMBER")
-                        dockerImage.push('latest')
+                    withCredentials([awsEcr(usernamePassword(credentialsId: 'aws-ecr-creds', passwordVariable: 'password', usernameVariable: 'username'))]) {
+                        docker.withRegistry("$LEAGUE_BOT_REGISTRY","$REGISTRY_CREDENTIALS") {
+                            dockerImage.push("$BUILD_NUMBER")
+                            dockerImage.push('latest')
                     }
-//                     }
 
 //                     sh "aws lambda update-function-code --function-name $LAMBDA_FUNCTION_NAME --image-uri $ECR_REGISTRY:$BUILD_NUMBER"
                 }
