@@ -2,11 +2,9 @@ pipeline {
     agent any
 
     environment {
-
-        awsRegion  = 'us-east-1'
-        awsCredentials = "ecr:$AWS_REGION:AWS_CREDENTIALS"
+        registryCredential = "ecr:us-east-1:AWS_CREDENTIALS"
         appRegistry = "869704209971.dkr.ecr.us-east-1.amazonaws.com/leaguetest"
-        botRegistry = "https://869704209971.dkr.ecr.us-east-1.amazonaws.com"
+        leagueBotRegistry = "https://869704209971.dkr.ecr.us-east-1.amazonaws.com"
         //LAMBDA_FUNCTION_NAME = 'your-lambda-function-name'
     }
 
@@ -30,19 +28,15 @@ pipeline {
                 }
             }
         }
-//         stage('Upload App Image') {
-//             steps {
-//                 script {
-//                     withCredentials([aws(credentialsId: 'aws-ecr-creds', passwordVariable: 'password', usernameVariable: 'username')]) {
-//                         docker.withRegistry("$LEAGUE_BOT_REGISTRY","$REGISTRY_CREDENTIALS") {
-//                             dockerImage.push("$BUILD_NUMBER")
-//                             dockerImage.push('latest')
-//                         }
-//                     }
-//
-// //                     sh "aws lambda update-function-code --function-name $LAMBDA_FUNCTION_NAME --image-uri $ECR_REGISTRY:$BUILD_NUMBER"
-//                 }
-//             }
-//         }
-     }
+        stage('Upload App Image') {
+             steps{
+                script {
+                    docker.withRegistry( leagueBotRegistry, registryCredential ) {
+                        dockerImage.push("$BUILD_NUMBER")
+                        dockerImage.push('latest')
+                    }
+                }
+             }
+        }
+    }
 }
