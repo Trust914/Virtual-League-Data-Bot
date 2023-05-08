@@ -13,10 +13,10 @@ pipeline {
         stage('Fetch code'){
             steps {
                  checkout([$class: 'GitSCM',
-                            branches: [[name: '*/main' ]],
+                            branches: [[name: '*/master' ]],
                             extensions: scm.extensions,
                             userRemoteConfigs: [[
-                                url: 'https://github.com/Trust914/django-todo.git',
+                                url: 'https://github.com/Trust914/Virtual-League-Data-Bot.git',
                                 credentialsId: 'GITHUB_CREDENTIALS'
                             ]]
                 ])
