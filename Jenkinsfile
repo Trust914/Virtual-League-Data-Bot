@@ -41,6 +41,7 @@ pipeline {
                         docker.withRegistry("$LEAGUE_BOT_REGISTRY","$REGISTRY_CREDENTIALS") {
                             dockerImage.push("$BUILD_NUMBER")
                             dockerImage.push('latest')
+                        }
                     }
 
 //                     sh "aws lambda update-function-code --function-name $LAMBDA_FUNCTION_NAME --image-uri $ECR_REGISTRY:$BUILD_NUMBER"
