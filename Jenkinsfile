@@ -5,7 +5,7 @@ pipeline {
         registryCredential = "ecr:us-east-1:AWS_CREDENTIALS"
         appRegistry = "869704209971.dkr.ecr.us-east-1.amazonaws.com/leaguetest"
         leagueBotRegistry = "https://869704209971.dkr.ecr.us-east-1.amazonaws.com"
-        //LAMBDA_FUNCTION_NAME = 'your-lambda-function-name'
+        lambdaFunctionName = 'your-lambda-function-name'
     }
 
     stages {
@@ -37,6 +37,18 @@ pipeline {
                     }
                 }
              }
+        }
+
+        stage('Update Lambda Function') {
+            steps {
+                script {
+                    withAWS(region: "us-east-1", credentials: 'AWS_CREDENTIALS') {
+                        def lambda = aws.lambda()
+                        def response = lambda.updateFunctionCode(LambdaFunctions:[lambdaFunctionName], ImageUri: appRegistry + ":$BUILD_NUMBER")
+                        echo "Update Lambda Function Response: ${response}"
+                    }
+                }
+            }
         }
     }
 }
