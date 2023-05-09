@@ -271,14 +271,15 @@ def send_email(to_email, user, new_pattern_teams, old_pattern_teams, id_league):
             break
 
     # If the league was not found in old_pattern_teams or the pattern is new, send the email
-    message = f"Hey {user},\n\nA NO DRAW pattern has been found in the scores of the following team(s):\n{new_pattern_teams}.\n\n" \
-              f"Click the Google sheet link to check {SHEET_LINK}."
+    if new_pattern_teams != "No teams without draw":
+        message = f"Hey {user},\n\nA NO DRAW pattern has been found in the scores of the following team(s):\n{new_pattern_teams}.\n\n" \
+                  f"Click the Google sheet link to check {SHEET_LINK}."
 
-    with smtplib.SMTP(host="smtp.gmail.com", port=587) as connection:
-        connection.starttls()
-        connection.login(user=FROM_EMAIL, password=FROM_EMAIL_PASS)
-        connection.sendmail(from_addr=FROM_EMAIL, to_addrs=to_email,
-                            msg=f"Subject:Pattern Found!\n\n{message}".encode("utf-8"))
+        with smtplib.SMTP(host="smtp.gmail.com", port=587) as connection:
+            connection.starttls()
+            connection.login(user=FROM_EMAIL, password=FROM_EMAIL_PASS)
+            connection.sendmail(from_addr=FROM_EMAIL, to_addrs=to_email,
+                                msg=f"Subject:Pattern Found!\n\n{message}".encode("utf-8"))
 
 
 def get_worksheet_data(endpoint, sheet):
