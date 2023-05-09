@@ -44,6 +44,7 @@ pipeline {
             steps {
                 script {
                     withAWS(region: "us-east-1", credentials: 'AWS_CREDENTIALS') {
+                        def aws = com.amazonaws.services
                         def lambda = aws.lambda()
                         def response = lambda.updateFunctionCode(LambdaFunctions:[lambdaFunctionName], ImageUri: appRegistry + ":$BUILD_NUMBER")
                         echo "Update Lambda Function Response: ${response}"
