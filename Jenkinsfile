@@ -44,11 +44,11 @@ pipeline {
             steps {
                 script {
                     withAWS(region: "us-east-1", credentials: 'AWS_CREDENTIALS') {
-                        def aws = com.amazonaws.services
-                        def lambda = aws.lambda()
-                        def response = lambda.updateFunctionCode(LambdaFunctions:[lambdaFunctionName], ImageUri: appRegistry + ":$BUILD_NUMBER")
-                        echo "Update Lambda Function Response: ${response}"
-//                         sh "aws lambda update-function-code --function-name arn:aws:lambda:us-east-1:869704209971:function:league-test --image-uri '${appRegistry}:$BUILD_NUMBER@$imageDigest'"
+//                         def aws = com.amazonaws.services
+//                         def lambda = aws.lambda()
+//                         def response = lambda.updateFunctionCode(LambdaFunctions:[lambdaFunctionName], ImageUri: appRegistry + ":$BUILD_NUMBER")
+//                         echo "Update Lambda Function Response: ${response}"
+                        sh "aws lambda update-function-code --function-name arn:aws:lambda:us-east-1:869704209971:function:league-test --image-uri '${appRegistry}:$BUILD_NUMBER@$imageDigest'"
 
                     }
                 }
