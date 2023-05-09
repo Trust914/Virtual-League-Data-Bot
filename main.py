@@ -101,7 +101,7 @@ def get_results_body(current_league_id, web_driver):
     """
     vals = []  # List to store all match fixations in the entire league
     total_weeks = 38  # total weeks in a league
-    min_week = 1
+    min_week = 15
     while True:
         updated_league_value = get_current_league(web_driver)
         print(f"Current league is {updated_league_value}\n")
@@ -125,7 +125,7 @@ def get_results_body(current_league_id, web_driver):
                 f"the program...........")
             results_body = None
             break
-        elif total_week_result >= min_week or updated_league_value != current_league_id:
+        elif total_week_result in range(min_week, total_weeks + 1) or updated_league_value != current_league_id:
             # The current league is complete, extract the data and perform other actions required
             break
         # else:
@@ -219,7 +219,7 @@ def clean_scores(uncleaned_scores, current_league):
 def check_score_pattern(results_dict: dict):
     teams = []  # to store teams with no draw pattern
     pattern = {}  # to store the pattern dictionary
-
+    min_week = 15
     # iterate through each key-value pair in the dictionary
     for key, value in results_dict.items():
         # if key is "leagueId" or "timeStamp", store its value in pattern dictionary and move to the next iteration
@@ -229,7 +229,7 @@ def check_score_pattern(results_dict: dict):
 
         # split the score string and check if it meets the criteria for a no-draw pattern
         club_score = value.split("-")
-        if len(club_score) < 10 or "D" not in club_score:
+        if len(club_score) < min_week or "D" not in club_score:
             continue
 
         # get the positions of all "D" in the score string
@@ -240,7 +240,7 @@ def check_score_pattern(results_dict: dict):
         # iterate through each pair of adjacent draw positions and check if the distance between them is >= 10
         for i in range(len(draw_positions) - 1):
             start, end = draw_positions[i], draw_positions[i + 1]
-            if end - start >= 10:
+            if end - start >= min_week:
                 # if the distance is >= 10, add the team to the teams list and break out of the loop
                 teams.append(key.upper())
                 break

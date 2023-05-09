@@ -3,9 +3,9 @@ pipeline {
 
     environment {
         registryCredential = "ecr:us-east-1:AWS_CREDENTIALS"
-        appRegistry = "869704209971.dkr.ecr.us-east-1.amazonaws.com/leaguetest"
+        appRegistry = "869704209971.dkr.ecr.us-east-1.amazonaws.com/league-project-docker-lambda"
         leagueBotRegistry = "https://869704209971.dkr.ecr.us-east-1.amazonaws.com"
-        lambdaFunctionName = 'your-lambda-function-name'
+        lambdaFunctionArn = 'arn:aws:lambda:us-east-1:869704209971:function:league-test'
     }
 
     stages {
@@ -43,7 +43,7 @@ pipeline {
             steps {
                 script {
                     withAWS(region: "us-east-1", credentials: 'AWS_CREDENTIALS') {
-                        sh "/usr/local/bin/aws lambda update-function-code --function-name arn:aws:lambda:us-east-1:869704209971:function:league-test --image-uri '${appRegistry}:$BUILD_NUMBER'"
+                        sh "/usr/local/bin/aws lambda update-function-code --function-name arn:aws:'${lambdaFunctionArn}' --image-uri '${appRegistry}:$BUILD_NUMBER'"
 
                     }
                 }
