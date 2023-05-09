@@ -15,6 +15,7 @@ from datetime import datetime
 
 SHEET_AUTH = (os.environ.get("LEAGUE_SHEETY_USER_NAME"), os.environ.get("LEAGUE_SHEETY_PASSWORD"))
 LEAGUE_SHEET_ENDPOINT = os.environ.get("LEAGUE_SHEETY_ENDPOINT")
+PATTERN_TEAMS_ENDPOINT = os.environ.get("PATTERN_TEAMS_ENDPOINT")
 SHEET_LINK = os.environ.get("LEAGUE_SHEET_LINK")
 FROM_EMAIL = os.environ.get("LEAGUE_FROM_EMAIL")
 FROM_EMAIL_PASS = os.environ.get("LEAGUE_FROM_EMAIL_PASS")
@@ -29,7 +30,7 @@ def get_web():
 
     # Set chrome options for working with headless mode (no screen)
     driver_options = webdriver.ChromeOptions()
-    driver_options.binary_location = '/opt/chrome/chrome'
+    # driver_options.binary_location = '/opt/chrome/chrome'
     driver_options.add_argument("headless")
     driver_options.add_argument("no-sandbox")
     driver_options.add_argument("--single-process")  # Lambda only gives us only one CPU
@@ -100,7 +101,7 @@ def get_results_body(current_league_id, web_driver):
     """
     vals = []  # List to store all match fixations in the entire league
     total_weeks = 38  # total weeks in a league
-    min_week = 7
+    min_week = 1
     while True:
         updated_league_value = get_current_league(web_driver)
         print(f"Current league is {updated_league_value}\n")
@@ -216,80 +217,84 @@ def clean_scores(uncleaned_scores, current_league):
 
 
 def check_score_pattern(results_dict: dict):
-    teams = []
+    teams = []  # to store teams with no draw pattern
+    pattern = {}  # to store the pattern dictionary
+
+    # iterate through each key-value pair in the dictionary
     for key, value in results_dict.items():
-        print(f"Scanning {key.upper()} for no draw pattern ....")
-        if key not in ["leagueId", "timeStamp"]:
-            club_score = value.split("-")
+        # if key is "leagueId" or "timeStamp", store its value in pattern dictionary and move to the next iteration
+        if key in ["leagueId", "timeStamp"]:
+            pattern[key] = value
+            continue
 
-            def add_team():
-                print(f'Pattern found in {key}')
-                teams.append(key)
+        # split the score string and check if it meets the criteria for a no-draw pattern
+        club_score = value.split("-")
+        if len(club_score) < 10 or "D" not in club_score:
+            continue
 
-            if len(club_score) >= 15:
-                if "D" in club_score:
-                    draw_pos = club_score.index("D")
-                    print(draw_pos)
+        # get the positions of all "D" in the score string
+        draw_positions = [i for i, score in enumerate(club_score) if score == "D"]
+        if len(draw_positions) < 2:  # the team has only one draw or no draw...
+            teams.append(key.upper())
 
-                    def find_diff():
-                        next_draw_index = club_score.index("D", draw_pos + 1)
-                        print(next_draw_index)
-                        diff = next_draw_index - draw_pos
-                        print(f"Diff btw {next_draw_index} and {draw_pos} is {diff}")
-                        return diff, next_draw_index
+        # iterate through each pair of adjacent draw positions and check if the distance between them is >= 10
+        for i in range(len(draw_positions) - 1):
+            start, end = draw_positions[i], draw_positions[i + 1]
+            if end - start >= 10:
+                # if the distance is >= 10, add the team to the teams list and break out of the loop
+                teams.append(key.upper())
+                break
 
-                    no_draw, next_draw_pos = find_diff()
-                    while True:
-                        if no_draw < 15 and "D" in club_score[next_draw_pos + 1:]:
-                            draw_pos = next_draw_pos
-                        elif no_draw >= 15:
-                            add_team()
-                            break
-                        else:
-                            break
-                        no_draw, next_draw_pos = find_diff()
-                    print(f"\n")
-                else:
-                    add_team()
-    print(teams)
-    teams_string = ",".join(teams).upper()
-    print(teams_string)
+    # create a string of teams with no draw pattern and store it in the pattern dictionary
+    if teams:
+        teams_string = ",".join(teams)
+        pattern["noDrawPatternTeams"] = teams_string
+        print(f"Pattern found in {teams_string}")
+    else:
+        teams_string = "No teams without draw"
+        pattern["noDrawPatternTeams"] = teams_string
+        print(teams_string)
 
-    message = f"Hey CJ,\n\nHurry up a NO DRAW pattern has been found in the scores of the following team(s):\n{teams_string}.\n\n" \
-              f"Click the l google sheet link to check {SHEET_LINK}."
-
-    if teams_string != "":
-        send_email(msg=message, to_email="trustezzy@gmail.com")
+    return teams_string, pattern
 
 
-def send_email(msg, to_email):
+def send_email(to_email, user, new_pattern_teams, old_pattern_teams, id_league):
+    print(f"old_pattern_teams: {old_pattern_teams}")
+
+    # Check if the league is in old_pattern_teams and if the pattern is new
+    for league in old_pattern_teams:
+        if id_league == league.get("leagueId"):
+            old_pattern = league.get("noDrawPatternTeams")
+            if new_pattern_teams == old_pattern or new_pattern_teams == "No teams without draw":
+                # The Pattern is not new, so don't send the email
+                return
+            break
+
+    # If the league was not found in old_pattern_teams or the pattern is new, send the email
+    message = f"Hey {user},\n\nA NO DRAW pattern has been found in the scores of the following team(s):\n{new_pattern_teams}.\n\n" \
+              f"Click the Google sheet link to check {SHEET_LINK}."
+
     with smtplib.SMTP(host="smtp.gmail.com", port=587) as connection:
         connection.starttls()
         connection.login(user=FROM_EMAIL, password=FROM_EMAIL_PASS)
         connection.sendmail(from_addr=FROM_EMAIL, to_addrs=to_email,
-                            msg=f"Subject:Pattern Found!\n\n{msg}".encode("utf-8"))
+                            msg=f"Subject:Pattern Found!\n\n{message}".encode("utf-8"))
 
 
-def get_worksheet_data():
-    response = requests.get(url=LEAGUE_SHEET_ENDPOINT, auth=SHEET_AUTH)
+def get_worksheet_data(endpoint, sheet):
+    response = requests.get(url=endpoint, auth=SHEET_AUTH)  # league table sheet
     response.raise_for_status()
     data = response.json()
-    league_table = data["leagueTable"]
-    # pp.pprint(league_table)
-    # print(len(league_table))
-    #
-    # for leagues in league_table:
-    #     if "League 5513" in leagues["leagueId"]:
-    #         index = leagues["id"]
-    #         print(index)
-    return league_table
+    usable_data = data[f"{sheet}"]
+
+    return usable_data
 
 
-def make_post_request(json_data):
+def make_leaguetable_post_request(json_data, endpoint):
     """
     This function makes a post-request to the Sheety api in order to push the final data to the Google sheets
     """
-    req = requests.post(url=LEAGUE_SHEET_ENDPOINT,
+    req = requests.post(url=endpoint,
                         json=json_data, auth=SHEET_AUTH)
     data_to_push = req.json()
 
@@ -300,8 +305,8 @@ def make_post_request(json_data):
         print({"statusCode": 200, "body": data_to_push})
 
 
-def make_put_request(json_data, row_index):
-    response = requests.put(url=f"{LEAGUE_SHEET_ENDPOINT}/{row_index}", json=json_data, auth=SHEET_AUTH)
+def make_leaguetable_put_request(json_data, row_index, endpoint):
+    response = requests.put(url=f"{endpoint}/{row_index}", json=json_data, auth=SHEET_AUTH)
     data_to_put = response.json()
 
     if 'errors' in json_data:
@@ -311,56 +316,61 @@ def make_put_request(json_data, row_index):
         print({"statusCode": 200, "body": data_to_put})
 
 
-def update_league(league_id, league_table, final_data):
+def update_league_table(league_id, sheet_table, sheet_name, final_data, url):
     put = False
     index = None
 
     json_raw_data = json.dumps(final_data, indent=4)
     print(json_raw_data)
     body = {
-        "leagueTable": final_data
+        f"{sheet_name}": final_data
 
     }
-    for leagues in league_table:
+    for leagues in sheet_table:
         if league_id in leagues["leagueId"]:
             index = leagues["id"]
             print(index)
             put = True
             break
     if put:
-        make_put_request(json_data=body, row_index=index)
+        make_leaguetable_put_request(json_data=body, row_index=index, endpoint=url)
     else:
-        make_post_request(json_data=body)
+        make_leaguetable_post_request(json_data=body, endpoint=url)
 
 
 # ---------------------------------------------------- Execute Bot -----------------------------------------------------
 
 def handler(event=None, context=None):
-    """
-    This is the function that will be run by AWS Lambda
-    """
-    driver = get_web()  # Opens the webpage
-    current_league_val = get_current_league(driver)  # retrieve the current running league
+    users = [{"name": "Trust", "email": "trustezzy@gmail.com"}, {"name": "CJ", "email": "okaforc684@gmail.com"}]
+    sheet1 = "leagueTable"
+    sheet2 = "patternTeams"
 
-    league_results = get_results_body(current_league_val, driver)  # Extract the league data
-    # print(len(league_results))
+    # Get the current league
+    driver = get_web()
+    current_league_val = get_current_league(driver)
 
-    if len(league_results) != 0:
-        print(f"total results {len(league_results)}\n")
+    # Extract league data and club scores
+    league_results = get_results_body(current_league_val, driver)
+    raw_scores = get_scores(league_results)
 
-        raw_scores = get_scores(league_results)  # Extract club scores
-        print(raw_scores)
+    # Clean the scores and update the league table
+    uncleaned_league_scores = find_win_lose_draw(raw_scores)
+    final_league_results = clean_scores(uncleaned_league_scores, current_league_val)
 
-        uncleaned_league_scores = find_win_lose_draw(raw_scores)  # match each club score to win,lose or draw
-        print(uncleaned_league_scores)
+    table_from_league_sheet = get_worksheet_data(endpoint=LEAGUE_SHEET_ENDPOINT, sheet=sheet1)
+    update_league_table(league_id=current_league_val, sheet_table=table_from_league_sheet,
+                        final_data=final_league_results, sheet_name=sheet1, url=LEAGUE_SHEET_ENDPOINT)
 
-        final_league_results = clean_scores(uncleaned_league_scores, current_league_val)  # get final clean data
-        print(final_league_results)
+    # Check for score patterns and update the pattern table
+    table_from_pattern_sheet = get_worksheet_data(endpoint=PATTERN_TEAMS_ENDPOINT, sheet=sheet2)
+    pattern_teams, pat_dict = check_score_pattern(results_dict=final_league_results)
+    update_league_table(league_id=current_league_val, sheet_table=table_from_pattern_sheet, final_data=pat_dict,
+                        url=PATTERN_TEAMS_ENDPOINT, sheet_name=sheet2[:11])
 
-        check_score_pattern(results_dict=final_league_results)
-        # send_to_google_sheet(final_league_results) # post result to the Google sheet
-        table_from_sheet = get_worksheet_data()
-        update_league(league_id=current_league_val, league_table=table_from_sheet,final_data=final_league_results)
+    # Send an email if a new pattern is found
+    for receivers in users:
+        send_email(to_email=receivers["email"], new_pattern_teams=pattern_teams,
+                   old_pattern_teams=table_from_pattern_sheet, id_league=current_league_val, user=receivers["name"])
 
 
 if __name__ == "__main__":
