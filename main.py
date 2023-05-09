@@ -351,26 +351,27 @@ def handler(event=None, context=None):
 
     # Extract league data and club scores
     league_results = get_results_body(current_league_val, driver)
-    raw_scores = get_scores(league_results)
+    if league_results :
+        raw_scores = get_scores(league_results)
 
-    # Clean the scores and update the league table
-    uncleaned_league_scores = find_win_lose_draw(raw_scores)
-    final_league_results = clean_scores(uncleaned_league_scores, current_league_val)
+        # Clean the scores and update the league table
+        uncleaned_league_scores = find_win_lose_draw(raw_scores)
+        final_league_results = clean_scores(uncleaned_league_scores, current_league_val)
 
-    table_from_league_sheet = get_worksheet_data(endpoint=LEAGUE_SHEET_ENDPOINT, sheet=sheet1)
-    update_league_table(league_id=current_league_val, sheet_table=table_from_league_sheet,
-                        final_data=final_league_results, sheet_name=sheet1, url=LEAGUE_SHEET_ENDPOINT)
+        table_from_league_sheet = get_worksheet_data(endpoint=LEAGUE_SHEET_ENDPOINT, sheet=sheet1)
+        update_league_table(league_id=current_league_val, sheet_table=table_from_league_sheet,
+                            final_data=final_league_results, sheet_name=sheet1, url=LEAGUE_SHEET_ENDPOINT)
 
-    # Check for score patterns and update the pattern table
-    table_from_pattern_sheet = get_worksheet_data(endpoint=PATTERN_TEAMS_ENDPOINT, sheet=sheet2)
-    pattern_teams, pat_dict = check_score_pattern(results_dict=final_league_results)
-    update_league_table(league_id=current_league_val, sheet_table=table_from_pattern_sheet, final_data=pat_dict,
-                        url=PATTERN_TEAMS_ENDPOINT, sheet_name=sheet2[:11])
+        # Check for score patterns and update the pattern table
+        table_from_pattern_sheet = get_worksheet_data(endpoint=PATTERN_TEAMS_ENDPOINT, sheet=sheet2)
+        pattern_teams, pat_dict = check_score_pattern(results_dict=final_league_results)
+        update_league_table(league_id=current_league_val, sheet_table=table_from_pattern_sheet, final_data=pat_dict,
+                            url=PATTERN_TEAMS_ENDPOINT, sheet_name=sheet2[:11])
 
-    # Send an email if a new pattern is found
-    for receivers in users:
-        send_email(to_email=receivers["email"], new_pattern_teams=pattern_teams,
-                   old_pattern_teams=table_from_pattern_sheet, id_league=current_league_val, user=receivers["name"])
+        # Send an email if a new pattern is found
+        for receivers in users:
+            send_email(to_email=receivers["email"], new_pattern_teams=pattern_teams,
+                       old_pattern_teams=table_from_pattern_sheet, id_league=current_league_val, user=receivers["name"])
 
 
 if __name__ == "__main__":
