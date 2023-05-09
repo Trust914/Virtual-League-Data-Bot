@@ -43,7 +43,7 @@ pipeline {
             steps {
                 script {
                     withAWS(region: "us-east-1", credentials: 'AWS_CREDENTIALS') {
-                        sh "/usr/local/bin/aws lambda update-function-code --function-name arn:aws:'${lambdaFunctionArn}' --image-uri '${appRegistry}:$BUILD_NUMBER'"
+                        sh "/usr/local/bin/aws lambda update-function-code --function-name arn:aws:${lambdaFunctionArn} --image-uri '${appRegistry}:$BUILD_NUMBER'"
 
                     }
                 }
