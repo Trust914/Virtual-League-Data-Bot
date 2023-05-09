@@ -235,7 +235,7 @@ def check_score_pattern(results_dict: dict):
         # get the positions of all "D" in the score string
         draw_positions = [i for i, score in enumerate(club_score) if score == "D"]
         if len(draw_positions) < 2:  # the team has only one draw or no draw...
-            teams.append(key.upper())
+            continue
 
         # iterate through each pair of adjacent draw positions and check if the distance between them is >= 10
         for i in range(len(draw_positions) - 1):
