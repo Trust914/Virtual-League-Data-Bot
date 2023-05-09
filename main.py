@@ -3,6 +3,8 @@ import json
 import requests
 import os
 import selenium.common
+import smtplib
+# from email.message import EmailMessage
 from tempfile import mkdtemp
 from selenium import webdriver
 from selenium.webdriver.chrome import service
@@ -13,6 +15,9 @@ from datetime import datetime
 
 SHEET_AUTH = (os.environ.get("LEAGUE_SHEETY_USER_NAME"), os.environ.get("LEAGUE_SHEETY_PASSWORD"))
 LEAGUE_SHEET_ENDPOINT = os.environ.get("LEAGUE_SHEETY_ENDPOINT")
+SHEET_LINK = os.environ.get("LEAGUE_SHEET_LINK")
+FROM_EMAIL = os.environ.get("LEAGUE_FROM_EMAIL")
+FROM_EMAIL_PASS = os.environ.get("LEAGUE_FROM_EMAIL_PASS")
 
 
 def get_web():
@@ -24,7 +29,7 @@ def get_web():
 
     # Set chrome options for working with headless mode (no screen)
     driver_options = webdriver.ChromeOptions()
-    driver_options.binary_location = '/opt/chrome/chrome'
+    # driver_options.binary_location = '/opt/chrome/chrome'
     driver_options.add_argument("headless")
     driver_options.add_argument("no-sandbox")
     driver_options.add_argument("--single-process")  # Lambda only gives us only one CPU
@@ -95,7 +100,7 @@ def get_results_body(current_league_id, web_driver):
     """
     vals = []  # List to store all match fixations in the entire league
     total_weeks = 38  # total weeks in a league
-    min_week = 36
+    min_week = 7
     while True:
         updated_league_value = get_current_league(web_driver)
         print(f"Current league is {updated_league_value}\n")
@@ -119,16 +124,16 @@ def get_results_body(current_league_id, web_driver):
                 f"the program...........")
             results_body = None
             break
-        elif total_week_result >= total_weeks or updated_league_value != current_league_id:
+        elif total_week_result >= min_week or updated_league_value != current_league_id:
             # The current league is complete, extract the data and perform other actions required
             break
-        else:
-            # We are in a minimum acceptable week. The bot will now wait for the current league to elapse,
-            # extract data and perform other actions required
-            print(f"Current league week is {total_week_result} and is close to the final week: {total_weeks}.\n"
-                  f"Refreshing and Waiting for {current_league_id} to end.....\n")
-            web_driver.refresh()  # refresh the webpage and check if the league weeks are up to the maximum = 38
-            time.sleep(5)
+        # else:
+        #     # We are in a minimum acceptable week. The bot will now wait for the current league to elapse,
+        #     # extract data and perform other actions required
+        #     print(f"Current league week is {total_week_result} and is close to the final week: {total_weeks}.\n"
+        #           f"Refreshing and Waiting for {current_league_id} to end.....\n")
+        #     web_driver.refresh()  # refresh the webpage and check if the league weeks are up to the maximum = 38
+        #     time.sleep(5)
     # driver.close()
     if results_body is not None:
         # extract each row results in the result table.each row contains a match fixation, e.g., ARS 1-3 CHE
@@ -210,7 +215,77 @@ def clean_scores(uncleaned_scores, current_league):
     return cleaned_results
 
 
-def make_api_request(json_data):
+def check_score_pattern(results_dict: dict):
+    teams = []
+    for key, value in results_dict.items():
+        print(f"Scanning {key.upper()} for no draw pattern ....")
+        if key not in ["leagueId", "timeStamp"]:
+            club_score = value.split("-")
+
+            def add_team():
+                print(f'Pattern found in {key}')
+                teams.append(key)
+
+            if len(club_score) >= 15:
+                if "D" in club_score:
+                    draw_pos = club_score.index("D")
+                    print(draw_pos)
+
+                    def find_diff():
+                        next_draw_index = club_score.index("D", draw_pos + 1)
+                        print(next_draw_index)
+                        diff = next_draw_index - draw_pos
+                        print(f"Diff btw {next_draw_index} and {draw_pos} is {diff}")
+                        return diff, next_draw_index
+
+                    no_draw, next_draw_pos = find_diff()
+                    while True:
+                        if no_draw < 15 and "D" in club_score[next_draw_pos + 1:]:
+                            draw_pos = next_draw_pos
+                        elif no_draw >= 15:
+                            add_team()
+                            break
+                        else:
+                            break
+                        no_draw, next_draw_pos = find_diff()
+                    print(f"\n")
+                else:
+                    add_team()
+    print(teams)
+    teams_string = ",".join(teams).upper()
+    print(teams_string)
+
+    message = f"Hey CJ,\n\nHurry up a NO DRAW pattern has been found in the scores of the following team(s):\n{teams_string}.\n\n" \
+              f"Click the l google sheet link to check {SHEET_LINK}."
+
+    if teams_string != "":
+        send_email(msg=message, to_email="trustezzy@gmail.com")
+
+
+def send_email(msg, to_email):
+    with smtplib.SMTP(host="smtp.gmail.com", port=587) as connection:
+        connection.starttls()
+        connection.login(user=FROM_EMAIL, password=FROM_EMAIL_PASS)
+        connection.sendmail(from_addr=FROM_EMAIL, to_addrs=to_email,
+                            msg=f"Subject:Pattern Found!\n\n{msg}".encode("utf-8"))
+
+
+def get_worksheet_data():
+    response = requests.get(url=LEAGUE_SHEET_ENDPOINT, auth=SHEET_AUTH)
+    response.raise_for_status()
+    data = response.json()
+    league_table = data["leagueTable"]
+    # pp.pprint(league_table)
+    # print(len(league_table))
+    #
+    # for leagues in league_table:
+    #     if "League 5513" in leagues["leagueId"]:
+    #         index = leagues["id"]
+    #         print(index)
+    return league_table
+
+
+def make_post_request(json_data):
     """
     This function makes a post-request to the Sheety api in order to push the final data to the Google sheets
     """
@@ -225,10 +300,20 @@ def make_api_request(json_data):
         print({"statusCode": 200, "body": data_to_push})
 
 
-def send_to_google_sheet(final_data):
-    """
-    This function pushes the final data to the Google sheets by using the sheety api
-    """
+def make_put_request(json_data, row_index):
+    response = requests.put(url=f"{LEAGUE_SHEET_ENDPOINT}/{row_index}", json=json_data, auth=SHEET_AUTH)
+    data_to_put = response.json()
+
+    if 'errors' in json_data:
+        error_detail = json_data['errors'][0]['detail']
+        print(f"Error: {error_detail}\n")
+    else:
+        print({"statusCode": 200, "body": data_to_put})
+
+
+def update_league(league_id, league_table, final_data):
+    put = False
+    index = None
 
     json_raw_data = json.dumps(final_data, indent=4)
     print(json_raw_data)
@@ -236,7 +321,16 @@ def send_to_google_sheet(final_data):
         "leagueTable": final_data
 
     }
-    make_api_request(json_data=body)
+    for leagues in league_table:
+        if league_id in leagues["leagueId"]:
+            index = leagues["id"]
+            print(index)
+            put = True
+            break
+    if put:
+        make_put_request(json_data=body, row_index=index)
+    else:
+        make_post_request(json_data=body)
 
 
 # ---------------------------------------------------- Execute Bot -----------------------------------------------------
@@ -263,7 +357,10 @@ def handler(event=None, context=None):
         final_league_results = clean_scores(uncleaned_league_scores, current_league_val)  # get final clean data
         print(final_league_results)
 
-        send_to_google_sheet(final_league_results)  # post result to the Google sheet
+        check_score_pattern(results_dict=final_league_results)
+        # send_to_google_sheet(final_league_results) # post result to the Google sheet
+        table_from_sheet = get_worksheet_data()
+        update_league(league_id=current_league_val, league_table=table_from_sheet,final_data=final_league_results)
 
 
 if __name__ == "__main__":
