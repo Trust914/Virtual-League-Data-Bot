@@ -125,16 +125,17 @@ def get_results_body(current_league_id, web_driver):
                 f"the program...........")
             results_body = None
             break
-        elif total_week_result in range(min_week, total_weeks + 1) or updated_league_value != current_league_id:
+        elif total_week_result in range(min_week, total_weeks - 2) or updated_league_value != current_league_id:
             # The current league is complete, extract the data and perform other actions required
             break
-        # else:
-        #     # We are in a minimum acceptable week. The bot will now wait for the current league to elapse,
-        #     # extract data and perform other actions required
-        #     print(f"Current league week is {total_week_result} and is close to the final week: {total_weeks}.\n"
-        #           f"Refreshing and Waiting for {current_league_id} to end.....\n")
-        #     web_driver.refresh()  # refresh the webpage and check if the league weeks are up to the maximum = 38
-        #     time.sleep(5)
+        else:
+            # We are in a minimum acceptable week.
+            # The bot will now wait for the current league to elapse,
+            # extract data and perform other actions required
+            print(f"Current league week is {total_week_result} and is close to the final week: {total_weeks}.\n"
+                  f"Refreshing and Waiting for {current_league_id} to end.....\n")
+            web_driver.refresh()  # refresh the webpage and check if the league weeks are up to the maximum = 38
+            time.sleep(5)
     # driver.close()
     if results_body is not None:
         # extract each row results in the result table.each row contains a match fixation, e.g., ARS 1-3 CHE
@@ -223,7 +224,7 @@ def check_score_pattern(results_dict: dict):
     """
     teams = []  # to store teams with no draw pattern
     pattern = {}  # to store the pattern dictionary
-    min_week = 15   # minimum number of week matches completed
+    min_week = 15  # minimum number of week matches completed
     # iterate through each key-value pair in the dictionary
     for key, value in results_dict.items():
         # if key is "leagueId" or "timeStamp", store its value in pattern dictionary and move to the next iteration
@@ -244,7 +245,7 @@ def check_score_pattern(results_dict: dict):
         # iterate through each pair of adjacent draw positions and check if the distance between them is >= 10
         for i in range(len(draw_positions) - 1):
             start, end = draw_positions[i], draw_positions[i + 1]
-            if (end - start) - 1 >= min_week :
+            if (end - start) - 1 >= min_week:
                 # if the distance is >= 10, add the team to the teams list and break out of the loop
                 teams.append(key.upper())
                 break
@@ -276,7 +277,8 @@ def send_email(to_email, user, new_pattern_teams, old_pattern_teams, id_league):
 
     # If the league was not found in old_pattern_teams or the pattern is new, send the email
     if new_pattern_teams != "No teams without draw":
-        message = f"Hey {user},\n\nA NO DRAW pattern has been found in the scores of the following team(s):\n{new_pattern_teams}.\n\n" \
+        message = f"Hey {user},\n\nA NO DRAW pattern has been found in the scores of the following team(s):" \
+                  f"\n{new_pattern_teams}.\n\n" \
                   f"Click the Google sheet link to check {SHEET_LINK}."
 
         with smtplib.SMTP(host="smtp.gmail.com", port=587) as connection:
@@ -356,7 +358,7 @@ def handler(event=None, context=None):
 
     # Extract league data and club scores
     league_results = get_results_body(current_league_val, driver)
-    if league_results :
+    if league_results:
         raw_scores = get_scores(league_results)
 
         # Clean the scores and update the league table
