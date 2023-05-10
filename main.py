@@ -217,9 +217,13 @@ def clean_scores(uncleaned_scores, current_league):
 
 
 def check_score_pattern(results_dict: dict):
+    """
+    This function checks for draw patterns of each team score in each league.
+
+    """
     teams = []  # to store teams with no draw pattern
     pattern = {}  # to store the pattern dictionary
-    min_week = 15
+    min_week = 15   # minimum number of week matches completed
     # iterate through each key-value pair in the dictionary
     for key, value in results_dict.items():
         # if key is "leagueId" or "timeStamp", store its value in pattern dictionary and move to the next iteration
@@ -240,7 +244,7 @@ def check_score_pattern(results_dict: dict):
         # iterate through each pair of adjacent draw positions and check if the distance between them is >= 10
         for i in range(len(draw_positions) - 1):
             start, end = draw_positions[i], draw_positions[i + 1]
-            if end - start >= min_week:
+            if (end - start) - 1 >= min_week :
                 # if the distance is >= 10, add the team to the teams list and break out of the loop
                 teams.append(key.upper())
                 break
@@ -291,7 +295,7 @@ def get_worksheet_data(endpoint, sheet):
     return usable_data
 
 
-def make_leaguetable_post_request(json_data, endpoint):
+def make_post_request(json_data, endpoint):
     """
     This function makes a post-request to the Sheety api in order to push the final data to the Google sheets
     """
@@ -306,7 +310,7 @@ def make_leaguetable_post_request(json_data, endpoint):
         print({"statusCode": 200, "body": data_to_push})
 
 
-def make_leaguetable_put_request(json_data, row_index, endpoint):
+def make_put_request(json_data, row_index, endpoint):
     response = requests.put(url=f"{endpoint}/{row_index}", json=json_data, auth=SHEET_AUTH)
     data_to_put = response.json()
 
@@ -317,7 +321,7 @@ def make_leaguetable_put_request(json_data, row_index, endpoint):
         print({"statusCode": 200, "body": data_to_put})
 
 
-def update_league_table(league_id, sheet_table, sheet_name, final_data, url):
+def update_google_sheets(league_id, sheet_table, sheet_name, final_data, url):
     put = False
     index = None
 
@@ -334,9 +338,9 @@ def update_league_table(league_id, sheet_table, sheet_name, final_data, url):
             put = True
             break
     if put:
-        make_leaguetable_put_request(json_data=body, row_index=index, endpoint=url)
+        make_put_request(json_data=body, row_index=index, endpoint=url)
     else:
-        make_leaguetable_post_request(json_data=body, endpoint=url)
+        make_post_request(json_data=body, endpoint=url)
 
 
 # ---------------------------------------------------- Execute Bot -----------------------------------------------------
@@ -360,14 +364,14 @@ def handler(event=None, context=None):
         final_league_results = clean_scores(uncleaned_league_scores, current_league_val)
 
         table_from_league_sheet = get_worksheet_data(endpoint=LEAGUE_SHEET_ENDPOINT, sheet=sheet1)
-        update_league_table(league_id=current_league_val, sheet_table=table_from_league_sheet,
-                            final_data=final_league_results, sheet_name=sheet1, url=LEAGUE_SHEET_ENDPOINT)
+        update_google_sheets(league_id=current_league_val, sheet_table=table_from_league_sheet,
+                             final_data=final_league_results, sheet_name=sheet1, url=LEAGUE_SHEET_ENDPOINT)
 
         # Check for score patterns and update the pattern table
         table_from_pattern_sheet = get_worksheet_data(endpoint=PATTERN_TEAMS_ENDPOINT, sheet=sheet2)
         pattern_teams, pat_dict = check_score_pattern(results_dict=final_league_results)
-        update_league_table(league_id=current_league_val, sheet_table=table_from_pattern_sheet, final_data=pat_dict,
-                            url=PATTERN_TEAMS_ENDPOINT, sheet_name=sheet2[:11])
+        update_google_sheets(league_id=current_league_val, sheet_table=table_from_pattern_sheet, final_data=pat_dict,
+                             url=PATTERN_TEAMS_ENDPOINT, sheet_name=sheet2[:11])
 
         # Send an email if a new pattern is found
         for receivers in users:
