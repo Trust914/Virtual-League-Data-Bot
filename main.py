@@ -136,6 +136,8 @@ def get_results_body(current_league_id, web_driver):
                   f"Refreshing and Waiting for {current_league_id} to end.....\n")
             web_driver.refresh()  # refresh the webpage and check if the league weeks are up to the maximum = 38
             time.sleep(5)
+            if total_week_result >= total_weeks or updated_league_value != current_league_id:
+                break
     # driver.close()
     if results_body is not None:
         # extract each row results in the result table.each row contains a match fixation, e.g., ARS 1-3 CHE
