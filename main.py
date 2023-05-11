@@ -99,7 +99,7 @@ def get_results_body(current_league_id, web_driver):
     """
     This function extracts the raw league data from the result page
     """
-    vals = []  # List to store all match fixations in the entire league
+    match_fixtures = []  # List to store all match fixations in the entire league
     total_weeks = 38  # total weeks in a league
     min_week = 15
     while True:
@@ -144,8 +144,8 @@ def get_results_body(current_league_id, web_driver):
         for results in results_body:
             temp = results.find_elements(by=By.TAG_NAME, value="tr")
             temp = temp[1:]
-            vals.append(temp)
-    return vals
+            match_fixtures.append(temp)
+    return match_fixtures
 
 
 def get_scores(league_table_raw):
@@ -165,7 +165,7 @@ def get_scores(league_table_raw):
 
 def find_win_lose_draw(scores_dict):
     """
-    This function gets the final result of a particular club in a match fixation for all the weeks
+    This function determines the win-lose-draw outcome for each team in each match of a season.
     """
     for keys in scores_dict:
         team_dict = {}  # Dictionary to store a team's score -
@@ -188,17 +188,17 @@ def find_win_lose_draw(scores_dict):
             else:
                 team_dict[left_team] = "D"
                 team_dict[right_team] = "D"
-
+            # Update scores_dict with team outcomes for this week
             scores_dict[keys] = {key: team_dict[key] for key in sorted(team_dict)}  # Update the original dictionary
     return scores_dict
 
 
 def clean_scores(uncleaned_scores, current_league):
     """
-    This function cleans the data and gets all the scores of each club per week
+    This function cleans the data and gets all the scores of each club per week.
     """
     scores = []
-    teams = [team for key in uncleaned_scores for team in uncleaned_scores[key]]  # all the teams in the league
+    teams = [team for matches in uncleaned_scores for team in uncleaned_scores[matches]]  # all the teams in the league
     teams = sorted(set(teams))
     print(teams)
 
@@ -236,31 +236,32 @@ def check_score_pattern(results_dict: dict):
 
         # split the score string and check if it meets the criteria for a no-draw pattern
         club_score = value.split("-")
-        if len(club_score) < min_week or "D" not in club_score:
+        if len(club_score) < min_week:
             continue
-
+        elif len(club_score) >= min_week and "D" not in club_score:
+            teams.append(key.upper())
         # get the positions of all "D" in the score string
-        draw_positions = [i for i, score in enumerate(club_score) if score == "D"]
-        if len(draw_positions) < 2:  # the team has only one draw or no draw...
-            continue
+        else:
+            draw_positions = [i for i, score in enumerate(club_score) if score == "D"]
+            if len(draw_positions) < 2:  # the team has only one draw or no draw...
+                continue
 
         # iterate through each pair of adjacent draw positions and check if the distance between them is >= 10
-        for i in range(len(draw_positions) - 1):
-            start, end = draw_positions[i], draw_positions[i + 1]
-            if (end - start) - 1 >= min_week:
-                # if the distance is >= 10, add the team to the teams list and break out of the loop
-                teams.append(key.upper())
-                break
+            for i in range(len(draw_positions) - 1):
+                start, end = draw_positions[i], draw_positions[i + 1]
+                if (end - start) - 1 >= min_week:
+                    # if the distance is >= 10, add the team to the teams list and break out of the loop
+                    teams.append(key.upper())
+                    break
 
     # create a string of teams with no draw pattern and store it in the pattern dictionary
     if teams:
         teams_string = ",".join(teams)
-        pattern["noDrawPatternTeams"] = teams_string
         print(f"Pattern found in {teams_string}")
     else:
         teams_string = "No teams without draw"
-        pattern["noDrawPatternTeams"] = teams_string
-        print(teams_string)
+    pattern["noDrawPatternTeams"] = teams_string
+    print(teams_string)
 
     return teams_string, pattern
 
