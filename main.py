@@ -250,7 +250,7 @@ def check_score_pattern(results_dict: dict):
             for i in range(len(draw_positions) - 1):
                 start, end = draw_positions[i], draw_positions[i + 1]
                 if (end - start) - 1 >= min_week:
-                    # if the distance is >= 10, add the team to the teams list and break out of the loop
+                    # if the distance is >= 15, add the team to the teams list and break out of the loop
                     teams.append(key.upper())
                     break
 
@@ -281,7 +281,7 @@ def send_email(to_email, user, new_pattern_teams, old_pattern_teams, id_league):
     # If the league was not found in old_pattern_teams or the pattern is new, send the email
     if new_pattern_teams != "No teams without draw":
         message = f"Hey {user},\n\nA NO DRAW pattern has been found in the scores of the following team(s):" \
-                  f"\n{new_pattern_teams}.\n\n" \
+                  f"\n{new_pattern_teams} in {id_league}.\n\n" \
                   f"Click the Google sheet link to check {SHEET_LINK}."
 
         with smtplib.SMTP(host="smtp.gmail.com", port=587) as connection:
