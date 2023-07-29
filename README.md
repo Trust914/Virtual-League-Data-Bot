@@ -1,6 +1,6 @@
 ## Bot Info
 
-> The aim of the Virtusl-League-Data-Bot is to get all match fixation results per week in a premier league(virtual) by scraping the data from a popular sporting site, formats and cleans the data and then pushes it to a google sheet using Sheety API. This program is containerised using docker, pushed to a private repo in an AWS Container Registry and is run by in an AWS Lambda function, triggered every 4 minutes.
+> The aim of the Virtual-League-Data-Bot is to get all match fixation results per week in a premier league(virtual) by scraping the data from a popular sporting site, formats and cleans the data and then pushes it to a google sheet using Sheety API. This program is containerised using docker, pushed to a private repo in an AWS Container Registry and is run by in an AWS Lambda function, triggered every 4 minutes.
 
 ## Requirements
 - Docker
@@ -48,7 +48,3 @@ The above step is very essential for use with the API
 - Update the general configuration with RAM of 1000 and increase timeout to at least 5 mins
 - Update environment variables in the lambda function with the ones created above
 - Create a trigger event with 4 minutes 
-
-## Credits
-
-- [umihico](https://github.com/umihico/docker-selenium-lambda.git)
